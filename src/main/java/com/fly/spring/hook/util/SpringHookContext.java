@@ -68,13 +68,7 @@ public class SpringHookContext implements ApplicationContextAware, ApplicationLi
     public void onApplicationEvent(ApplicationReadyEvent applicationReadyEvent) {
 
         // 获取当前启动类包路径
-        Map<String, Object> map = applicationContext.getBeansWithAnnotation(SpringBootApplication.class);
-        String defaultPackage = map.values()
-                .stream()
-                .map(bean -> bean.getClass().getPackage())
-                .map(Package::getName)
-                .findFirst()
-                .orElse(null);
+        String defaultPackage = resolveDefaultPackage();
 
         if (defaultPackage == null) {
             log.info("cannot find default package");
@@ -82,8 +76,34 @@ public class SpringHookContext implements ApplicationContextAware, ApplicationLi
         }
 
         //扫描bean，将包路径下所有的bean找出来
+        Map<String, Class<?>> classMap = resolveBeanMap(defaultPackage);
+
+        //解析bean的依赖
+        resolveDependencies(classMap);
+    }
+
+    private void resolveDependencies(Map<String, Class<?>> classMap) {
+
+        for (String name : classMap.keySet()) {
+            BeanDefinition definition = applicationContext.getBeanDefinition(name);
+            Object bean = applicationContext.getBean(name);
+            Class<?> targetClass = classMap.get(name);
+
+
+
+        }
+    }
+
+    /**
+     * 解析包下所有的bean
+     *
+     * @param defaultPackage    包
+     * @return                  bean信息
+     */
+    private Map<String, Class<?>> resolveBeanMap(String defaultPackage) {
+        //扫描bean，将包路径下所有的bean找出来
         String[] beanNames = applicationContext.getBeanDefinitionNames();
-        Map<String, Class<?>> classMap = new HashMap<>();
+        Map<String, Class<?>> classMap = new HashMap<>(16);
 
         for (String beanName : beanNames) {
             Object bean = applicationContext.getBean(beanName);
@@ -96,16 +116,20 @@ public class SpringHookContext implements ApplicationContextAware, ApplicationLi
             }
         }
 
+        return classMap;
+    }
 
-        //解析bean的依赖
-        for (String name : classMap.keySet()) {
-            BeanDefinition definition = applicationContext.getBeanDefinition(name);
-            Object bean = applicationContext.getBean(name);
-            Class<?> targetClass = classMap.get(name);
-
-            
-
-        }
+    /**
+     * @return  启动类所在的包
+     */
+    private String resolveDefaultPackage() {
+        return applicationContext.getBeansWithAnnotation(SpringBootApplication.class)
+                .values()
+                .stream()
+                .map(bean -> bean.getClass().getPackage())
+                .map(Package::getName)
+                .findFirst()
+                .orElse(null);
 
     }
 }
