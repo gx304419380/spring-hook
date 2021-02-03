@@ -5,26 +5,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
-import org.springframework.beans.MutablePropertyValues;
-import org.springframework.beans.factory.annotation.AnnotatedGenericBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.support.AbstractBeanDefinition;
-import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.ScannedGenericBeanDefinition;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.core.type.AnnotationMetadata;
-import org.springframework.core.type.MethodMetadata;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.util.ClassUtils;
 
-import java.lang.reflect.Field;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author guoxiang
@@ -80,16 +72,21 @@ public class SpringHookContext implements ApplicationContextAware, ApplicationLi
 
         //解析bean的依赖
         resolveDependencies(classMap);
+
     }
 
+
+    /**
+     * 解析bean的依赖
+     *
+     * @param classMap  所有bean信息
+     */
     private void resolveDependencies(Map<String, Class<?>> classMap) {
 
         for (String name : classMap.keySet()) {
             BeanDefinition definition = applicationContext.getBeanDefinition(name);
             Object bean = applicationContext.getBean(name);
             Class<?> targetClass = classMap.get(name);
-
-
 
         }
     }

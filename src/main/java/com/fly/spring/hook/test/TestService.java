@@ -1,7 +1,11 @@
 package com.fly.spring.hook.test;
 
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 
 /**
  * @author guoxiang
@@ -11,9 +15,29 @@ import org.springframework.stereotype.Service;
 @Service
 public class TestService {
 
+    @PostConstruct
+    public void init() {
+        System.out.println("PostConstruct");
+    }
+
+    @PreDestroy
+    public void destroy() {
+        System.out.println("PreDestroy");
+    }
+
     @Async
     public void testService() {
-        System.out.println("test service");
+        System.out.println("father");
+    }
+
+    public String test(String param) {
+        return "father test service: " + param;
+    }
+
+
+    @EventListener
+    public void onEvent(TestEvent event) {
+        System.out.println("father" + event.getMessage());
     }
 
 }
