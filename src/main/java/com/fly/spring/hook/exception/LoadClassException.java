@@ -12,4 +12,8 @@ public class LoadClassException extends RuntimeException {
     public LoadClassException(String message) {
         super(message);
     }
+
+    public LoadClassException(Throwable cause) {
+        super(cause);
+    }
 }

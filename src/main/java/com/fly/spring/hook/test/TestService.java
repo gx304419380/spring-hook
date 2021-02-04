@@ -17,7 +17,7 @@ public class TestService {
 
     @PostConstruct
     public void init() {
-        System.out.println("PostConstruct");
+        System.out.println("hello this is test service PostConstruct");
     }
 
     @PreDestroy

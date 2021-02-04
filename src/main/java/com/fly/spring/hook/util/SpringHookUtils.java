@@ -13,16 +13,9 @@ import java.lang.reflect.Constructor;
  */
 public class SpringHookUtils {
 
-    /**
-     * 开始手术，将寄生类植入到目标类的对应方法中
-     *
-     * @param className 要植入的目标类名
-     * @param parasite  寄生类
-     */
-    public static void operate(String className, Class<?> parasite) {
-        Class<?> mother = SpringHookContext.getByClassName(className);
-        operate(mother, parasite);
-    }
+
+
+
 
 
     /**

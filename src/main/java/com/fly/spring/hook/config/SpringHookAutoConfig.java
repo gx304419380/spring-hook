@@ -14,7 +14,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
  */
 @Configuration
 @ConditionalOnProperty(value = "spring.hook.enable", matchIfMissing = true)
-@EnableAsync
+@EnableAsync(proxyTargetClass = true)
 public class SpringHookAutoConfig {
 
     @Bean

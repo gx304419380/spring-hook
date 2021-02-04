@@ -1,13 +1,15 @@
 package com.fly.spring.hook.test;
 
+import com.fly.spring.hook.util.SpringHookContext;
 import javassist.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_SINGLETON;
 
@@ -23,13 +25,25 @@ public class ManagementController {
     @Autowired
     private GenericApplicationContext applicationContext;
 
+    @Autowired
+    private SpringHookContext springHookContext;
+
+
+    @PostMapping("replace")
+    public String replace(@RequestParam String beanName,
+                          @RequestPart MultipartFile file) throws IOException {
+        springHookContext.replace(beanName, file.getInputStream());
+        return "success";
+    }
+
+
     @GetMapping
     public String changeBean() throws NotFoundException, CannotCompileException {
 
         // 类库池, jvm中所加载的class
         ClassPool pool = ClassPool.getDefault();
 
-        // 获取指定的Student类
+        // 获取指定的类
         String name = TestService.class.getName();
         CtClass father = pool.get(name);
         CtClass ctClass = pool.getAndRename(name, name + "$$sub");
@@ -37,10 +51,13 @@ public class ManagementController {
 
         // 获取sayHello方法
         CtMethod ctMethod = ctClass.getDeclaredMethod("test");
-        // 在方法的代码后追加 一段代码
-//        ctMethod.insertAfter("System.out.println(\"I'm 100 years old.\");");
-        ctMethod.setBody("{$1 = $1 + \"测试\";" +
-                "\nreturn \"javassist sub test service\" + $1;}");
+        // 修改方法
+        ctClass.removeMethod(ctMethod);
+        CtMethod testMethod = CtNewMethod.make("public String test(String param) {\n" +
+                "return \"sub test service: \" + param;\n" +
+                "}", ctClass);
+
+        ctClass.addMethod(testMethod);
 
         // 使用当前的ClassLoader加载被修改后的类
         Class<?> subClass = ctClass.toClass(TestService.class.getClassLoader(), null);
