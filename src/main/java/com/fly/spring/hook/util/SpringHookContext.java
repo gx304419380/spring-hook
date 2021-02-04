@@ -1,33 +1,30 @@
 package com.fly.spring.hook.util;
 
 import com.fly.spring.hook.entity.BeanInfo;
-import com.fly.spring.hook.exception.LoadClassException;
+import com.fly.spring.hook.exception.LoadSubClassException;
 import javassist.*;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
-import javassist.expr.MethodCall;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.support.*;
+import org.springframework.beans.factory.support.AbstractBeanDefinition;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.util.Assert;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static org.springframework.beans.factory.config.BeanDefinition.SCOPE_SINGLETON;
 
 /**
  * @author guoxiang
@@ -42,23 +39,97 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
     @Autowired
     private GenericApplicationContext applicationContext;
 
-    public void replace(String beanName, InputStream classInputStream) {
+
+    /**
+     * 替换指定bean中的某个方法，加锁防并发
+     *
+     * @param beanName      bean名称
+     * @param methodName    方法名
+     * @param methodCode    新方法代码
+     */
+    public synchronized void replaceBeanByMethod(String beanName, String methodName, String methodCode) {
+
         BeanInfo beanInfo = getBeanInfo(beanName);
 
-        Class<?> subClass = generateSubClass(beanInfo, classInputStream);
+        //根据传入的方法代码生成一个老class的子类
+        Class<?> subClass = generateClassByMethod(beanInfo, methodName, methodCode);
 
+        replaceBean(beanName, subClass);
+    }
+
+
+    /**
+     * 替换bean，加锁防并发
+     * @param beanName          bean名称
+     * @param classInputStream  class文件
+     */
+    public synchronized void replaceBeanByClass(String beanName, InputStream classInputStream) {
+
+        BeanInfo beanInfo = getBeanInfo(beanName);
+
+        //根据传入的新class生成一个老class的子类
+        Class<?> subClass = generateClassByFile(beanInfo, classInputStream);
+
+        replaceBean(beanName, subClass);
+    }
+
+
+    /**
+     * 调用spring框架替换bean
+     *
+     * @param beanName  beanName
+     * @param subClass  新的bean类型
+     */
+    private void replaceBean(String beanName, Class<?> subClass) {
+        //移除旧的bean
         DefaultListableBeanFactory beanFactory = applicationContext.getDefaultListableBeanFactory();
         beanFactory.removeBeanDefinition(beanName);
 
+        //定义新的bean definition并注册到spring
         AbstractBeanDefinition bd = BeanDefinitionBuilder.genericBeanDefinition(subClass).getBeanDefinition();
-        bd.setBeanClassName(subClass.getName());
-
         beanFactory.registerBeanDefinition(beanName, bd);
 
+        //生成bean
         Object bean = beanFactory.getBean(beanName);
         log.info("refresh bean finish: {}", bean);
 
+        //对于controller需要特殊处理，生成request mapping
         handleRequestMapping(beanName);
+    }
+
+
+    /**
+     * 根据传入的方法字符串，生成一个新的bean class
+     *
+     * @param beanInfo      bean信息
+     * @param methodName    方法名
+     * @param methodCode    方法代码
+     * @return              新class
+     */
+    private Class<?> generateClassByMethod(BeanInfo beanInfo, String methodName, String methodCode) {
+
+        String name = beanInfo.getTargetClass().getName();
+        // 类库池, jvm中所加载的class
+        ClassPool pool = ClassPool.getDefault();
+        try {
+            CtClass father = pool.get(name);
+            CtClass sub = pool.getAndRename(name, name + "__JAVASSIST");
+            sub.setSuperclass(father);
+
+            handleConstructors(sub);
+
+            //todo 这里会涉及到重载的问题，等有时间在完善
+            CtMethod ctMethod = sub.getDeclaredMethod(methodName);
+            sub.removeMethod(ctMethod);
+
+            //生成新的方法
+            CtMethod method = CtNewMethod.make(methodCode, sub);
+            sub.addMethod(method);
+
+            return sub.toClass(beanInfo.getBeanClassLoader(), null);
+        } catch (Exception e) {
+            throw new LoadSubClassException(e);
+        }
     }
 
 
@@ -69,38 +140,81 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param classInputStream  类文件输入流
      * @return                  新类
      */
-    private Class<?> generateSubClass(BeanInfo beanInfo, InputStream classInputStream) {
+    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream) {
         String name = beanInfo.getTargetClass().getName();
         // 类库池, jvm中所加载的class
         ClassPool pool = ClassPool.getDefault();
 
         try {
             CtClass father = pool.get(name);
-            CtClass ctClass = pool.makeClass(classInputStream);
-            ctClass.setName(name + "__JAVASSIST");
-            ctClass.setSuperclass(father);
+            CtClass sub = pool.makeClass(classInputStream);
+            validateClass(sub, father);
 
-            //这里需要将构造函数整理一下，如果父类没有空构造会报错！！！
-            CtConstructor[] constructors = ctClass.getDeclaredConstructors();
-            for (CtConstructor constructor : constructors) {
-                constructor.instrument(new ExprEditor() {
-                    @Override
-                    public void edit(ConstructorCall c) throws CannotCompileException {
-                        if (c.isSuper()) {
-                            c.replace("{}");
-                        }
-                    }
-                });
-                constructor.insertBeforeBody("super($$);");
-            }
+            sub.setName(name + "__JAVASSIST");
+            sub.setSuperclass(father);
 
+            handleConstructors(sub);
 
-            ctClass.writeFile("D:/");
-            return ctClass.toClass(beanInfo.getBeanClassLoader(), null);
+            return sub.toClass(beanInfo.getBeanClassLoader(), null);
         } catch (Exception e) {
-            throw new LoadClassException(e);
+            throw new LoadSubClassException(e);
         }
 
+    }
+
+
+    /**
+     * 校验用户上传的class
+     * @param sub       子类
+     * @param father    父类
+     */
+    private void validateClass(CtClass sub, CtClass father) {
+
+        boolean same = sub.getName().equals(father.getName());
+
+        if (same) {
+            return;
+        }
+
+        boolean isSub = sub.subclassOf(father);
+        Assert.isTrue(isSub, "neither the same nor sub class of " + father.getName());
+    }
+
+
+    /**
+     * 这里需要将构造函数整理一下，如果父类没有空构造会报错！！！
+     * @param ctClass       子类
+     * @throws Exception    异常
+     */
+    private void handleConstructors(CtClass ctClass) throws Exception {
+        //这里需要将构造函数整理一下，如果父类没有空构造会报错！！！
+        for (CtConstructor constructor : ctClass.getDeclaredConstructors()) {
+            int argLength = constructor.getParameterTypes().length;
+
+            if (argLength == 0) {
+                continue;
+            }
+
+            constructor.instrument(ConstructorEditor.INSTANCE);
+            constructor.insertBeforeBody("super($$);");
+        }
+
+    }
+
+
+    private static class ConstructorEditor extends ExprEditor {
+
+        static ConstructorEditor INSTANCE = new ConstructorEditor();
+
+        private ConstructorEditor() {
+        }
+
+        @Override
+        public void edit(ConstructorCall c) throws CannotCompileException {
+            if (c.isSuper()) {
+                c.replace("{}");
+            }
+        }
     }
 
     @Override
@@ -124,7 +238,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param beanName  bean名称
      * @return          bean信息
      */
-    public BeanInfo getBeanInfo(String beanName) {
+    private BeanInfo getBeanInfo(String beanName) {
         Object bean = applicationContext.getBean(beanName);
 
         boolean isProxy = AopUtils.isAopProxy(bean);

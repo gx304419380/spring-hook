@@ -20,12 +20,11 @@ public class TestController {
     private final TestService testService;
 
     public TestController(TestService testService) {
-        System.out.println("test controller init");
         this.testService = testService;
     }
 
     @PostMapping
-    public String reload(String param) {
+    public String test(String param) {
         return testService.test(param);
     }
 
