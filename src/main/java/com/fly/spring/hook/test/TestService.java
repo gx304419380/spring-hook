@@ -37,7 +37,7 @@ public class TestService {
 
     @EventListener
     public void onEvent(TestEvent event) {
-        System.out.println("father" + event.getMessage());
+        System.out.println("father " + event.getMessage());
     }
 
 }

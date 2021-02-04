@@ -1,6 +1,7 @@
 package com.fly.spring.hook.util;
 
 import com.fly.spring.hook.entity.BeanInfo;
+import com.fly.spring.hook.entity.HookMethodDto;
 import com.fly.spring.hook.exception.LoadSubClassException;
 import javassist.*;
 import javassist.expr.ConstructorCall;
@@ -40,21 +41,24 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
     private GenericApplicationContext applicationContext;
 
 
+
+
     /**
      * 替换指定bean中的某个方法，加锁防并发
-     *
-     * @param beanName      bean名称
-     * @param methodName    方法名
-     * @param methodCode    新方法代码
      */
-    public synchronized void replaceBeanByMethod(String beanName, String methodName, String methodCode) {
+    public synchronized void replaceBeanByMethod(HookMethodDto dto) {
 
-        BeanInfo beanInfo = getBeanInfo(beanName);
+        BeanInfo beanInfo = getBeanInfo(dto.getBeanName());
 
         //根据传入的方法代码生成一个老class的子类
-        Class<?> subClass = generateClassByMethod(beanInfo, methodName, methodCode);
+        Class<?> subClass;
+        try {
+            subClass = generateClassByMethod(beanInfo, dto);
+        } catch (Exception e) {
+            throw new LoadSubClassException(e);
+        }
 
-        replaceBean(beanName, subClass);
+        replaceBean(dto.getBeanName(), subClass);
     }
 
 
@@ -68,7 +72,12 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
         BeanInfo beanInfo = getBeanInfo(beanName);
 
         //根据传入的新class生成一个老class的子类
-        Class<?> subClass = generateClassByFile(beanInfo, classInputStream);
+        Class<?> subClass;
+        try {
+            subClass = generateClassByFile(beanInfo, classInputStream);
+        } catch (Exception e) {
+            throw new LoadSubClassException(e);
+        }
 
         replaceBean(beanName, subClass);
     }
@@ -102,34 +111,49 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * 根据传入的方法字符串，生成一个新的bean class
      *
      * @param beanInfo      bean信息
-     * @param methodName    方法名
-     * @param methodCode    方法代码
+     * @param dto           hook信息
      * @return              新class
      */
-    private Class<?> generateClassByMethod(BeanInfo beanInfo, String methodName, String methodCode) {
+    private Class<?> generateClassByMethod(BeanInfo beanInfo, HookMethodDto dto) throws Exception {
 
         String name = beanInfo.getTargetClass().getName();
         // 类库池, jvm中所加载的class
         ClassPool pool = ClassPool.getDefault();
-        try {
-            CtClass father = pool.get(name);
-            CtClass sub = pool.getAndRename(name, name + "__JAVASSIST");
-            sub.setSuperclass(father);
 
-            handleConstructors(sub);
+        CtClass father = pool.get(name);
+        CtClass sub = pool.getAndRename(name, name + "__JAVASSIST");
+        sub.setSuperclass(father);
 
-            //todo 这里会涉及到重载的问题，等有时间在完善
-            CtMethod ctMethod = sub.getDeclaredMethod(methodName);
-            sub.removeMethod(ctMethod);
+        handleConstructors(sub);
 
-            //生成新的方法
-            CtMethod method = CtNewMethod.make(methodCode, sub);
-            sub.addMethod(method);
+        //todo 这里会涉及到重载的问题，等有时间在完善
+        CtMethod ctMethod = sub.getDeclaredMethod(dto.getMethodName());
 
-            return sub.toClass(beanInfo.getBeanClassLoader(), null);
-        } catch (Exception e) {
-            throw new LoadSubClassException(e);
+        switch (dto.getHookMethodType()) {
+            case REPLACE:
+                sub.removeMethod(ctMethod);
+                //生成新的方法
+                CtMethod method = CtNewMethod.make(dto.getMethodCode(), sub);
+                sub.addMethod(method);
+                break;
+
+            case BEFORE:
+                ctMethod.insertBefore(dto.getMethodCode());
+                break;
+
+            case AFTER:
+                ctMethod.insertAfter(dto.getMethodCode());
+                break;
+
+            case FINALLY:
+                ctMethod.insertAfter(dto.getMethodCode(), true);
+                break;
         }
+
+
+
+        return sub.toClass(beanInfo.getBeanClassLoader(), null);
+
     }
 
 
@@ -140,26 +164,22 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param classInputStream  类文件输入流
      * @return                  新类
      */
-    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream) {
+    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream) throws Exception {
+
         String name = beanInfo.getTargetClass().getName();
         // 类库池, jvm中所加载的class
         ClassPool pool = ClassPool.getDefault();
 
-        try {
-            CtClass father = pool.get(name);
-            CtClass sub = pool.makeClass(classInputStream);
-            validateClass(sub, father);
+        CtClass father = pool.get(name);
+        CtClass sub = pool.makeClass(classInputStream);
+        validateClass(sub, father);
 
-            sub.setName(name + "__JAVASSIST");
-            sub.setSuperclass(father);
+        sub.setName(name + "__JAVASSIST");
+        sub.setSuperclass(father);
 
-            handleConstructors(sub);
+        handleConstructors(sub);
 
-            return sub.toClass(beanInfo.getBeanClassLoader(), null);
-        } catch (Exception e) {
-            throw new LoadSubClassException(e);
-        }
-
+        return sub.toClass(beanInfo.getBeanClassLoader(), null);
     }
 
 
@@ -202,12 +222,12 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
     }
 
 
+    /**
+     * 将构造函数中自带的隐式super()去掉
+     */
     private static class ConstructorEditor extends ExprEditor {
 
         static ConstructorEditor INSTANCE = new ConstructorEditor();
-
-        private ConstructorEditor() {
-        }
 
         @Override
         public void edit(ConstructorCall c) throws CannotCompileException {
@@ -238,7 +258,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param beanName  bean名称
      * @return          bean信息
      */
-    private BeanInfo getBeanInfo(String beanName) {
+    public BeanInfo getBeanInfo(String beanName) {
         Object bean = applicationContext.getBean(beanName);
 
         boolean isProxy = AopUtils.isAopProxy(bean);
@@ -250,70 +270,6 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
         return new BeanInfo(beanName, bean, isProxy, target, targetClass);
     }
 
-    /**
-     * 启动监听器，便利spring的bean，将依赖关系保存起来
-     *
-     */
-    @Async
-    @EventListener(classes = ApplicationReadyEvent.class)
-    public void onApplicationEvent() {
-
-        // 获取当前启动类包路径
-        String defaultPackage = resolveDefaultPackage();
-
-        if (defaultPackage == null) {
-            log.info("cannot find default package");
-            return;
-        }
-
-        //扫描bean，将包路径下所有的bean找出来
-        Map<String, Class<?>> classMap = resolveBeanMap(defaultPackage);
-
-        //解析bean的依赖
-        resolveDependencies(classMap);
-
-    }
-
-
-    /**
-     * 解析bean的依赖
-     *
-     * @param classMap  所有bean信息
-     */
-    private void resolveDependencies(Map<String, Class<?>> classMap) {
-
-        for (String name : classMap.keySet()) {
-            BeanDefinition definition = applicationContext.getBeanDefinition(name);
-            Object bean = applicationContext.getBean(name);
-            Class<?> targetClass = classMap.get(name);
-
-        }
-    }
-
-    /**
-     * 解析包下所有的bean
-     *
-     * @param defaultPackage    包
-     * @return                  bean信息
-     */
-    private Map<String, Class<?>> resolveBeanMap(String defaultPackage) {
-        //扫描bean，将包路径下所有的bean找出来
-        String[] beanNames = applicationContext.getBeanDefinitionNames();
-        Map<String, Class<?>> classMap = new HashMap<>(16);
-
-        for (String beanName : beanNames) {
-            Object bean = applicationContext.getBean(beanName);
-
-            Class<?> beanClass = AopUtils.isAopProxy(bean) ?
-                    AopProxyUtils.ultimateTargetClass(bean) : bean.getClass();
-
-            if (beanClass.getName().startsWith(defaultPackage)) {
-                classMap.put(beanName, beanClass);
-            }
-        }
-
-        return classMap;
-    }
 
     /**
      * @return  启动类所在的包
