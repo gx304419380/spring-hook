@@ -77,7 +77,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
         try {
             CtClass father = pool.get(name);
             CtClass ctClass = pool.makeClass(classInputStream);
-            ctClass.setName(name + "$$sub");
+            ctClass.setName(name + "__JAVASSIST");
             ctClass.setSuperclass(father);
 
             //这里需要将构造函数整理一下，如果父类没有空构造会报错！！！
