@@ -40,6 +40,10 @@ public class ObjectUtils {
     }
 
 
+    public static boolean notEmpty(@Nullable Object[] array) {
+        return (array != null && array.length > 0);
+    }
+
     public static boolean notEmpty(@Nullable Object obj) {
         return !isEmpty(obj);
     }
