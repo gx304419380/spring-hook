@@ -2,18 +2,15 @@ package com.fly.spring.hook.controller;
 
 import com.fly.spring.hook.entity.BeanInfo;
 import com.fly.spring.hook.entity.HookMethodDto;
-import com.fly.spring.hook.test.TestEvent;
 import com.fly.spring.hook.util.SpringHookContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import static com.fly.spring.hook.util.ObjectUtils.isEmpty;
@@ -25,14 +22,11 @@ import static java.util.stream.Collectors.toList;
  * @version 1.0.0
  * @since 2021/2/3
  */
-@RestController
+@ResponseBody
 @RequestMapping("/spring/hook")
 public class SpringHookController {
 
     private static final Logger log = LoggerFactory.getLogger(SpringHookController.class);
-
-    @Autowired
-    private GenericApplicationContext applicationContext;
 
     @Autowired
     private SpringHookContext springHookContext;
@@ -85,9 +79,7 @@ public class SpringHookController {
     public List<String> getBeanNameList(@RequestParam(required = false) String name,
                                         @RequestParam(required = false) String packageName) {
 
-        String[] names = applicationContext.getBeanDefinitionNames();
-
-        Stream<String> stream = Stream.of(names).sorted();
+        Stream<String> stream = springHookContext.getBeanNameStream();
 
         if (notEmpty(name)) {
             stream = stream.filter(n -> n.contains(name));

@@ -21,6 +21,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.stream.Stream;
 
 import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
 
@@ -217,6 +218,11 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
             constructor.insertBeforeBody("super($$);");
         }
 
+    }
+
+    public Stream<String> getBeanNameStream() {
+        String[] names = applicationContext.getBeanDefinitionNames();
+        return Stream.of(names).sorted();
     }
 
 
