@@ -11,21 +11,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.util.Assert;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * @author guoxiang
@@ -147,6 +141,8 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
 
             case FINALLY:
                 ctMethod.insertAfter(dto.getMethodCode(), true);
+                break;
+            default:
                 break;
         }
 
