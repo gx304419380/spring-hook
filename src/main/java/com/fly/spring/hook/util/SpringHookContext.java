@@ -223,7 +223,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      */
     private static class ConstructorEditor extends ExprEditor {
 
-        static ConstructorEditor INSTANCE = new ConstructorEditor();
+        static final ConstructorEditor INSTANCE = new ConstructorEditor();
 
         @Override
         public void edit(ConstructorCall c) throws CannotCompileException {
