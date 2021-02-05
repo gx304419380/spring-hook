@@ -38,6 +38,14 @@ public class SpringHookController {
     private SpringHookContext springHookContext;
 
 
+    /**
+     * 上传class文件，替换bean
+     *
+     * @param beanName  bean名称
+     * @param file      class文件
+     * @return          信息
+     * @throws IOException  异常
+     */
     @PostMapping("replaceBean")
     public String replaceBean(@RequestParam String beanName,
                               @RequestPart MultipartFile file) throws IOException {
@@ -50,6 +58,11 @@ public class SpringHookController {
     }
 
 
+    /**
+     * 直接修改某个bean的指定方法
+     * @param dto   dto
+     * @return      执行信息
+     */
     @PostMapping("replaceMethod")
     public String replaceMethod(@RequestBody HookMethodDto dto) {
 
@@ -62,6 +75,12 @@ public class SpringHookController {
     }
 
 
+    /**
+     * 获取当前bean列表
+     * @param name          根据名称查询
+     * @param packageName   根据包名查询
+     * @return              bean list
+     */
     @GetMapping("bean")
     public List<String> getBeanNameList(@RequestParam(required = false) String name,
                                         @RequestParam(required = false) String packageName) {
