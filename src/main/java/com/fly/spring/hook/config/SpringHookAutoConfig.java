@@ -1,6 +1,7 @@
 package com.fly.spring.hook.config;
 
 import com.fly.spring.hook.controller.SpringHookController;
+import com.fly.spring.hook.util.RequestMappingUtils;
 import com.fly.spring.hook.util.SpringHookContext;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -24,9 +25,18 @@ public class SpringHookAutoConfig {
         return new SpringHookContext();
     }
 
+
     @Bean
     @ConditionalOnMissingBean
     public SpringHookController springHookController() {
         return new SpringHookController();
     }
+
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RequestMappingUtils requestMappingUtils() {
+        return new RequestMappingUtils();
+    }
+
 }

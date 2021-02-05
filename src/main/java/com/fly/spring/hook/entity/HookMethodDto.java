@@ -6,19 +6,29 @@ import java.util.List;
 
 public class HookMethodDto {
 
-    // beanName      bean名称
+    /**
+     * bean名称
+     */
     private String beanName;
 
-    // methodName    方法名
+    /**
+     * 方法名
+     */
     private String methodCode;
 
-    // methodCode    新方法代码
+    /**
+     * 新方法代码
+     */
     private String methodName;
 
-    // 参数类型列表
+    /**
+     * 参数类型列表
+     */
     private List<String> argClassList;
 
-    // hook方法类型 包括前插，后插，整体替换 以及 finally块插入
+    /**
+     * hook方法类型 包括前插，后插，整体替换 以及 finally块插入
+     */
     private HookMethodType hookMethodType;
 
     public String getBeanName() {

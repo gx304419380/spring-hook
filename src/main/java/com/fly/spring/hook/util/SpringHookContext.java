@@ -17,7 +17,6 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.util.Assert;
-import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,12 +30,15 @@ import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
  * @since 2021/2/1
  * @apiNote 上下文，用于获取spring context中的bean并解析依赖
  */
-public class SpringHookContext extends RequestMappingHandlerMapping {
+public class SpringHookContext {
 
     private static final Logger log = LoggerFactory.getLogger(SpringHookContext.class);
 
     @Autowired
     private GenericApplicationContext applicationContext;
+
+    @Autowired
+    private RequestMappingUtils requestMappingUtils;
 
     private volatile String defaultPackage;
 
@@ -150,10 +152,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
                 break;
         }
 
-
-
         return sub.toClass(beanInfo.getBeanClassLoader(), null);
-
     }
 
 
@@ -164,7 +163,8 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param classInputStream  类文件输入流
      * @return                  新类
      */
-    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream) throws NotFoundException, IOException, CannotCompileException {
+    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream)
+            throws NotFoundException, IOException, CannotCompileException {
 
         String name = beanInfo.getTargetClass().getName();
         // 类库池, jvm中所加载的class
@@ -241,10 +241,6 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
         }
     }
 
-    @Override
-    public void afterPropertiesSet() {
-        // do nothing 测试阶段，目前不清楚这个方法会有哪些影响
-    }
 
     /**
      * 处理该类中RequestMapping相关方法
@@ -252,8 +248,9 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param beanName  bean名称
      */
     private void handleRequestMapping(String beanName) {
-        processCandidateBean(beanName);
-        handlerMethodsInitialized(getHandlerMethods());
+        // TODO: 2021/2/5 针对controller中的RequestMapping要进行相应的处理
+        BeanInfo beanInfo = getBeanInfo(beanName);
+
     }
 
 
