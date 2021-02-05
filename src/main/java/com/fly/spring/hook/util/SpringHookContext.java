@@ -250,7 +250,7 @@ public class SpringHookContext {
     private void handleRequestMapping(String beanName) {
         // TODO: 2021/2/5 针对controller中的RequestMapping要进行相应的处理
         BeanInfo beanInfo = getBeanInfo(beanName);
-
+        requestMappingUtils.registerController(beanInfo);
     }
 
 
