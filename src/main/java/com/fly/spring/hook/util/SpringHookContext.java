@@ -19,7 +19,10 @@ import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.util.Assert;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import java.io.IOException;
 import java.io.InputStream;
+
+import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
 
 /**
  * @author guoxiang
@@ -34,7 +37,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
     @Autowired
     private GenericApplicationContext applicationContext;
 
-
+    private volatile String defaultPackage;
 
 
     /**
@@ -108,7 +111,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param dto           hook信息
      * @return              新class
      */
-    private Class<?> generateClassByMethod(BeanInfo beanInfo, HookMethodDto dto) throws Exception {
+    private Class<?> generateClassByMethod(BeanInfo beanInfo, HookMethodDto dto) throws NotFoundException, CannotCompileException {
 
         String name = beanInfo.getTargetClass().getName();
         // 类库池, jvm中所加载的class
@@ -160,7 +163,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @param classInputStream  类文件输入流
      * @return                  新类
      */
-    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream) throws Exception {
+    private Class<?> generateClassByFile(BeanInfo beanInfo, InputStream classInputStream) throws NotFoundException, IOException, CannotCompileException {
 
         String name = beanInfo.getTargetClass().getName();
         // 类库池, jvm中所加载的class
@@ -200,9 +203,8 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
     /**
      * 这里需要将构造函数整理一下，如果父类没有空构造会报错！！！
      * @param ctClass       子类
-     * @throws Exception    异常
      */
-    private void handleConstructors(CtClass ctClass) throws Exception {
+    private void handleConstructors(CtClass ctClass) throws NotFoundException, CannotCompileException {
         //这里需要将构造函数整理一下，如果父类没有空构造会报错！！！
         for (CtConstructor constructor : ctClass.getDeclaredConstructors()) {
             int argLength = constructor.getParameterTypes().length;
@@ -235,6 +237,7 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
 
     @Override
     public void afterPropertiesSet() {
+        // do nothing 测试阶段，目前不清楚这个方法会有哪些影响
     }
 
     /**
@@ -271,13 +274,20 @@ public class SpringHookContext extends RequestMappingHandlerMapping {
      * @return  启动类所在的包
      */
     private String resolveDefaultPackage() {
-        return applicationContext.getBeansWithAnnotation(SpringBootApplication.class)
+
+        if (notEmpty(defaultPackage)) {
+            return defaultPackage;
+        }
+
+        defaultPackage = applicationContext.getBeansWithAnnotation(SpringBootApplication.class)
                 .values()
                 .stream()
                 .map(bean -> bean.getClass().getPackage())
                 .map(Package::getName)
                 .findFirst()
                 .orElse(null);
+
+        return defaultPackage;
 
     }
 }
