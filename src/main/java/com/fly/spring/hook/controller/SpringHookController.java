@@ -1,5 +1,6 @@
 package com.fly.spring.hook.controller;
 
+import com.fly.spring.hook.entity.BeanDto;
 import com.fly.spring.hook.entity.BeanInfo;
 import com.fly.spring.hook.entity.HookMethodDto;
 import com.fly.spring.hook.util.SpringHookContext;
@@ -68,35 +69,46 @@ public class SpringHookController {
         return "success";
     }
 
+    @GetMapping("bean/detail/{beanName}")
+    public BeanDto getBeanDetail(@PathVariable String beanName) {
+        BeanInfo beanInfo = springHookContext.getBeanInfo(beanName);
+
+        return new BeanDto(beanInfo);
+    }
 
     /**
      * 获取当前bean列表
-     * @param name          根据名称查询
-     * @param packageName   根据包名查询
+     * @param beanName       根据名称查询
+     * @param className     根据包名查询
      * @return              bean list
      */
     @GetMapping("bean")
-    public List<String> getBeanNameList(@RequestParam(required = false) String name,
-                                        @RequestParam(required = false) String packageName) {
+    public List<BeanDto> getBeanNameList(@RequestParam(required = false) String beanName,
+                                         @RequestParam(required = false) String className) {
 
         Stream<String> stream = springHookContext.getBeanNameStream();
 
-        if (notEmpty(name)) {
-            stream = stream.filter(n -> n.contains(name));
+        if (notEmpty(beanName)) {
+            stream = stream.filter(n -> n.contains(beanName));
         }
 
-        if (notEmpty(packageName)) {
-            stream = stream.filter(bean -> inPackage(bean, packageName));
+        Stream<BeanDto> infoStream = stream.map(this::getBeanInfo);
+
+        if (notEmpty(className)) {
+            infoStream = infoStream.filter(bean -> inPackage(bean, className));
         }
 
-        return stream.collect(toList());
+        return infoStream.collect(toList());
+    }
+
+    private BeanDto getBeanInfo(String name) {
+        BeanInfo beanInfo = springHookContext.getBeanInfo(name);
+        return new BeanDto(name, beanInfo.getTargetClass().getName());
     }
 
 
-    private boolean inPackage(String bean, String packageName) {
-
-        BeanInfo beanInfo = springHookContext.getBeanInfo(bean);
-        return beanInfo.getTargetClass().getName().startsWith(packageName);
+    private boolean inPackage(BeanDto bean, String packageName) {
+        return bean.getClassName().contains(packageName);
     }
 
 }
