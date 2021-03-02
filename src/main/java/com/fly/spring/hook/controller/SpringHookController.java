@@ -32,7 +32,6 @@ public class SpringHookController {
     @Autowired
     private SpringHookContext springHookContext;
 
-
     /**
      * 上传class文件，替换bean
      *
@@ -46,10 +45,10 @@ public class SpringHookController {
                               @RequestPart MultipartFile file) throws IOException {
         log.info("- replace bean: {}, class file: {}", beanName, file.getOriginalFilename());
 
-        springHookContext.replaceBeanByClass(beanName, file.getInputStream());
+        String result = springHookContext.replaceBeanByClass(beanName, file.getInputStream());
 
         log.info("- replace bean: {} finished...", beanName);
-        return "success";
+        return result;
     }
 
 
@@ -63,10 +62,10 @@ public class SpringHookController {
 
         log.info("- replace method: {}", dto);
 
-        springHookContext.replaceBeanByMethod(dto);
+        String result = springHookContext.replaceBeanByMethod(dto);
 
         log.info("- replace method: {}.{} finished...", dto.getBeanName(), dto.getMethodName());
-        return "success";
+        return result;
     }
 
     @GetMapping("bean/detail/{beanName}")
@@ -89,26 +88,26 @@ public class SpringHookController {
         Stream<String> stream = springHookContext.getBeanNameStream();
 
         if (notEmpty(beanName)) {
-            stream = stream.filter(n -> n.contains(beanName));
+            stream = stream.filter(n -> n.toLowerCase().contains(beanName.toLowerCase()));
         }
 
-        Stream<BeanDto> infoStream = stream.map(this::getBeanInfo);
+        Stream<BeanDto> infoStream = stream.map(this::getBeanDto);
 
         if (notEmpty(className)) {
-            infoStream = infoStream.filter(bean -> inPackage(bean, className));
+            infoStream = infoStream.filter(bean -> classNameLike(bean, className));
         }
 
         return infoStream.collect(toList());
     }
 
-    private BeanDto getBeanInfo(String name) {
+    private BeanDto getBeanDto(String name) {
         BeanInfo beanInfo = springHookContext.getBeanInfo(name);
         return new BeanDto(name, beanInfo.getTargetClass().getName());
     }
 
 
-    private boolean inPackage(BeanDto bean, String packageName) {
-        return bean.getClassName().contains(packageName);
+    private boolean classNameLike(BeanDto bean, String className) {
+        return bean.getClassName().toLowerCase().contains(className.toLowerCase());
     }
 
 }

@@ -2,7 +2,6 @@ package com.fly.spring.hook.util;
 
 import com.fly.spring.hook.entity.BeanInfo;
 import com.fly.spring.hook.entity.HookMethodDto;
-import com.fly.spring.hook.exception.LoadSubClassException;
 import javassist.*;
 import javassist.expr.ConstructorCall;
 import javassist.expr.ExprEditor;
@@ -20,6 +19,8 @@ import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
@@ -34,6 +35,10 @@ public class SpringHookContext {
 
     private static final Logger log = LoggerFactory.getLogger(SpringHookContext.class);
 
+    private static final String CLASS_POSTFIX = "__JAVASSIST__";
+    private static final String SUCCESS = "SUCCESS";
+    private static final AtomicInteger COUNTER = new AtomicInteger(1);
+
     @Autowired
     private GenericApplicationContext applicationContext;
 
@@ -42,11 +47,14 @@ public class SpringHookContext {
 
     private volatile String defaultPackage;
 
+    private static final ConcurrentHashMap<String, BeanInfo> CACHE = new ConcurrentHashMap<>(512);
+
 
     /**
      * 替换指定bean中的某个方法，加锁防并发
+     * @return  result
      */
-    public synchronized void replaceBeanByMethod(HookMethodDto dto) {
+    public synchronized String replaceBeanByMethod(HookMethodDto dto) {
 
         BeanInfo beanInfo = getBeanInfo(dto.getBeanName());
 
@@ -55,10 +63,12 @@ public class SpringHookContext {
         try {
             subClass = generateClassByMethod(beanInfo, dto);
         } catch (Exception e) {
-            throw new LoadSubClassException(e);
+            log.error("generate class error", e);
+            return e.getMessage();
         }
 
         replaceBean(dto.getBeanName(), subClass);
+        return SUCCESS;
     }
 
 
@@ -66,8 +76,9 @@ public class SpringHookContext {
      * 替换bean，加锁防并发
      * @param beanName          bean名称
      * @param classInputStream  class文件
+     * @return  result
      */
-    public synchronized void replaceBeanByClass(String beanName, InputStream classInputStream) {
+    public synchronized String replaceBeanByClass(String beanName, InputStream classInputStream) {
 
         BeanInfo beanInfo = getBeanInfo(beanName);
 
@@ -76,10 +87,12 @@ public class SpringHookContext {
         try {
             subClass = generateClassByFile(beanInfo, classInputStream);
         } catch (Exception e) {
-            throw new LoadSubClassException(e);
+            log.error("generate class error", e);
+            return e.getMessage();
         }
 
         replaceBean(beanName, subClass);
+        return SUCCESS;
     }
 
 
@@ -104,6 +117,9 @@ public class SpringHookContext {
 
         //对于controller需要特殊处理，生成request mapping
         handleRequestMapping(beanName);
+
+        //刷新缓存
+        CACHE.remove(beanName);
     }
 
 
@@ -117,11 +133,14 @@ public class SpringHookContext {
     private Class<?> generateClassByMethod(BeanInfo beanInfo, HookMethodDto dto) throws NotFoundException, CannotCompileException {
 
         String name = beanInfo.getTargetClass().getName();
+        if (name.contains(CLASS_POSTFIX)) {
+            name = name.substring(0, name.indexOf(CLASS_POSTFIX));
+        }
         // 类库池, jvm中所加载的class
         ClassPool pool = ClassPool.getDefault();
 
         CtClass father = pool.get(name);
-        CtClass sub = pool.getAndRename(name, name + "__JAVASSIST");
+        CtClass sub = pool.getAndRename(name, name + CLASS_POSTFIX + COUNTER.getAndIncrement());
         sub.setSuperclass(father);
 
         handleConstructors(sub);
@@ -167,6 +186,9 @@ public class SpringHookContext {
             throws NotFoundException, IOException, CannotCompileException {
 
         String name = beanInfo.getTargetClass().getName();
+        if (name.contains(CLASS_POSTFIX)) {
+            name = name.substring(0, name.indexOf(CLASS_POSTFIX));
+        }
         // 类库池, jvm中所加载的class
         ClassPool pool = ClassPool.getDefault();
 
@@ -174,7 +196,7 @@ public class SpringHookContext {
         CtClass sub = pool.makeClass(classInputStream);
         validateClass(sub, father);
 
-        sub.setName(name + "__JAVASSIST");
+        sub.setName(name + CLASS_POSTFIX + COUNTER.getAndIncrement());
         sub.setSuperclass(father);
 
         handleConstructors(sub);
@@ -197,7 +219,7 @@ public class SpringHookContext {
         }
 
         boolean isSub = sub.subclassOf(father);
-        Assert.isTrue(isSub, "neither the same nor sub class of " + father.getName());
+        Assert.isTrue(isSub, "类型错误：" + father.getName());
     }
 
 
@@ -253,6 +275,9 @@ public class SpringHookContext {
         requestMappingUtils.registerController(beanInfo);
     }
 
+    public BeanInfo getBeanInfo(String beanName) {
+        return CACHE.computeIfAbsent(beanName, this::doGetBeanInfo);
+    }
 
     /**
      * 获取bean信息
@@ -260,7 +285,8 @@ public class SpringHookContext {
      * @param beanName  bean名称
      * @return          bean信息
      */
-    public BeanInfo getBeanInfo(String beanName) {
+    public BeanInfo doGetBeanInfo(String beanName) {
+
         Object bean = applicationContext.getBean(beanName);
 
         boolean isProxy = AopUtils.isAopProxy(bean);
