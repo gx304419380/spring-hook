@@ -19,6 +19,7 @@ import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -146,7 +147,7 @@ public class SpringHookContext {
         handleConstructors(sub);
 
         //todo 这里会涉及到重载的问题，等有时间在完善
-        CtMethod ctMethod = sub.getDeclaredMethod(dto.getMethodName());
+        CtMethod ctMethod = findMethod(sub, dto.getMethodName(), dto.getArgClassList());
 
         switch (dto.getHookMethodType()) {
             case REPLACE:
@@ -172,6 +173,30 @@ public class SpringHookContext {
         }
 
         return sub.toClass(beanInfo.getBeanClassLoader(), null);
+    }
+
+    /**
+     * 寻找指定的method
+     * @param ctClass       ctClass
+     * @param methodName    方法名
+     * @param argClassList  参数列表
+     * @return              返回ctMethod
+     */
+    private CtMethod findMethod(CtClass ctClass, String methodName, List<String> argClassList) throws NotFoundException {
+        CtMethod[] declaredMethods = ctClass.getDeclaredMethods(methodName);
+        if (declaredMethods.length == 1) {
+            return declaredMethods[0];
+        }
+
+        for (CtMethod method : declaredMethods) {
+            CtClass[] parameterTypes = method.getParameterTypes();
+            boolean matchParam = Stream.of(parameterTypes).map(CtClass::getName).allMatch(argClassList::contains);
+            if (matchParam) {
+                return method;
+            }
+        }
+
+        throw new NotFoundException(methodName);
     }
 
 
