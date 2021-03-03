@@ -19,12 +19,15 @@ import org.springframework.util.Assert;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
+import static java.util.stream.Collectors.toList;
 
 /**
  * @author guoxiang
@@ -146,7 +149,6 @@ public class SpringHookContext {
 
         handleConstructors(sub);
 
-        //todo 这里会涉及到重载的问题，等有时间在完善
         CtMethod ctMethod = findMethod(sub, dto.getMethodName(), dto.getArgClassList());
 
         switch (dto.getHookMethodType()) {
@@ -190,8 +192,9 @@ public class SpringHookContext {
 
         for (CtMethod method : declaredMethods) {
             CtClass[] parameterTypes = method.getParameterTypes();
-            boolean matchParam = Stream.of(parameterTypes).map(CtClass::getName).allMatch(argClassList::contains);
-            if (matchParam) {
+            Object[] params = Arrays.stream(parameterTypes).map(CtClass::getName).toArray();
+            Object[] args = argClassList.toArray();
+            if (Arrays.equals(params, args)) {
                 return method;
             }
         }

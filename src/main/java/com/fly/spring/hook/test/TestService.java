@@ -30,6 +30,10 @@ public class TestService {
         System.out.println("father");
     }
 
+    public String test(Object param, String param2) {
+        return "original test service: " + param + param2;
+    }
+
     public String test(String param) {
         return "original test service: " + param;
     }
