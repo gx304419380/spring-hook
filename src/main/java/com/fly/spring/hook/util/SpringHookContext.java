@@ -23,11 +23,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
-import static java.util.stream.Collectors.toList;
+import static com.fly.spring.hook.util.SpringHookObjectUtils.notEmpty;
 
 /**
  * @author guoxiang

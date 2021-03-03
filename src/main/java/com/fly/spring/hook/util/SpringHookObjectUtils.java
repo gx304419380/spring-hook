@@ -10,9 +10,9 @@ import java.util.Optional;
 /**
  * @author guoxiang
  */
-public class ObjectUtils {
+public class SpringHookObjectUtils {
 
-    private ObjectUtils() {}
+    private SpringHookObjectUtils() {}
 
     public static boolean isEmpty(@Nullable Object obj) {
         if (obj == null) {

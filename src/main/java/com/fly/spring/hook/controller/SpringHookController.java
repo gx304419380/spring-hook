@@ -14,8 +14,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Stream;
 
-import static com.fly.spring.hook.util.ObjectUtils.isEmpty;
-import static com.fly.spring.hook.util.ObjectUtils.notEmpty;
+import static com.fly.spring.hook.util.SpringHookObjectUtils.notEmpty;
 import static java.util.stream.Collectors.toList;
 
 /**

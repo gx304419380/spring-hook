@@ -1,7 +1,5 @@
 package com.fly.spring.hook.config;
 
-import org.springframework.boot.autoconfigure.AutoConfigurationImportSelector;
-import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
@@ -14,8 +12,6 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@Inherited
-@AutoConfigurationPackage
 @Import(SpringHookAutoConfig.class)
 public @interface EnableSpringHook {
 }
