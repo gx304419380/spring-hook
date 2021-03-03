@@ -39,4 +39,9 @@ public class SpringHookAutoConfig {
         return new RequestMappingUtils();
     }
 
+    @Bean
+    public SpringHookWebMvcConfig springHookWebMvcConfig() {
+        return new SpringHookWebMvcConfig();
+    }
+
 }
