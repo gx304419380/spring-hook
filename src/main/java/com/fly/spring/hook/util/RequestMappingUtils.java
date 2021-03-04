@@ -26,6 +26,7 @@ public class RequestMappingUtils {
 
     /**
      * 去掉Controller的Mapping
+     * @param beanInfo beanInfo
      */
     public void unregisterController(BeanInfo beanInfo) {
 

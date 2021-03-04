@@ -28,10 +28,10 @@ import java.util.stream.Stream;
 import static com.fly.spring.hook.util.SpringHookObjectUtils.notEmpty;
 
 /**
+ * 上下文，用于获取spring context中的bean并解析依赖
  * @author guoxiang
  * @version 1.0.0
  * @since 2021/2/1
- * @apiNote 上下文，用于获取spring context中的bean并解析依赖
  */
 public class SpringHookContext {
 
@@ -54,6 +54,7 @@ public class SpringHookContext {
 
     /**
      * 替换指定bean中的某个方法，加锁防并发
+     * @param dto dto
      * @return  result
      */
     public synchronized String replaceBeanByMethod(HookMethodDto dto) {
