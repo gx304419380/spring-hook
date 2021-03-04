@@ -74,6 +74,12 @@ public class SpringHookController {
         return new BeanDto(beanInfo);
     }
 
+
+    @GetMapping("package")
+    public String getDefaultPackage() {
+        return springHookContext.resolveDefaultPackage();
+    }
+
     /**
      * 获取当前bean列表
      * @param beanName       根据名称查询

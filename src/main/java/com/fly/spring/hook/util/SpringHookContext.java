@@ -188,10 +188,10 @@ public class SpringHookContext {
             return declaredMethods[0];
         }
 
+        Object[] args = argClassList.toArray();
         for (CtMethod method : declaredMethods) {
             CtClass[] parameterTypes = method.getParameterTypes();
             Object[] params = Arrays.stream(parameterTypes).map(CtClass::getName).toArray();
-            Object[] args = argClassList.toArray();
             if (Arrays.equals(params, args)) {
                 return method;
             }
@@ -296,7 +296,6 @@ public class SpringHookContext {
      * @param beanName  bean名称
      */
     private void handleRequestMapping(String beanName) {
-        // TODO: 2021/2/5 针对controller中的RequestMapping要进行相应的处理
         BeanInfo beanInfo = getBeanInfo(beanName);
         requestMappingUtils.registerController(beanInfo);
     }
@@ -328,7 +327,7 @@ public class SpringHookContext {
     /**
      * @return  启动类所在的包
      */
-    private String resolveDefaultPackage() {
+    public String resolveDefaultPackage() {
 
         if (notEmpty(defaultPackage)) {
             return defaultPackage;
@@ -343,6 +342,5 @@ public class SpringHookContext {
                 .orElse(null);
 
         return defaultPackage;
-
     }
 }
