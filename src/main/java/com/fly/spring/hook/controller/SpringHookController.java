@@ -46,7 +46,7 @@ public class SpringHookController {
 
         String result = springHookContext.replaceBeanByClass(beanName, file.getInputStream());
 
-        log.info("- replace bean: {} finished...", beanName);
+        log.info("- replace bean: {} result = {}", beanName, result);
         return result;
     }
 
@@ -63,7 +63,7 @@ public class SpringHookController {
 
         String result = springHookContext.replaceBeanByMethod(dto);
 
-        log.info("- replace method: {}.{} finished...", dto.getBeanName(), dto.getMethodName());
+        log.info("- replace method: {} finished, result = {}", dto.getBeanName(), result);
         return result;
     }
 
