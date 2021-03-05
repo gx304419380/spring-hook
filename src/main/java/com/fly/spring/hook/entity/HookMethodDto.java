@@ -4,6 +4,9 @@ import com.fly.spring.hook.constant.HookMethodType;
 
 import java.util.List;
 
+/**
+ * @author guoxiang
+ */
 public class HookMethodDto {
 
     /**
