@@ -4,14 +4,14 @@
 可以用于线上项目紧急维护，bug定位等
 
 #使用方法
-##1. mvn install，然后将依赖引入到指定的项目
+##1. 依赖引入到指定的项目
 
 ```
-        <dependency>
-            <groupId>com.fly.spring</groupId>
-            <artifactId>spring-hook</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
+<dependency>
+  <groupId>com.github.gx304419380</groupId>
+  <artifactId>spring-hook</artifactId>
+  <version>1.0.0</version>
+</dependency>
 ```
 
 ##2. 在项目中添加注解：
